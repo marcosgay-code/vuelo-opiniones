@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Opiniones de Vuelo 🪂</title>
+<style>
+body { font-family: Arial, sans-serif; background-color: #f0f2f5; margin:0; padding:20px; }
+h1 { text-align: center; color: #333; }
+.tabs { display: flex; justify-content: center; margin-bottom: 20px; flex-wrap: wrap; gap:5px; }
+.tab { padding: 10px 20px; cursor: pointer; border-radius: 8px; background-color: #ddd; transition:0.3s; }
+.tab.active { background-color: #4CAF50; color: white; }
+.container { max-width: 800px; margin: auto; }
+.zona { background-color: white; padding: 15px; margin-bottom: 15px; border-radius: 12px; box-shadow: 0 3px 8px rgba(0,0,0,0.1); }
+.opinion { margin-left: 15px; margin-bottom: 10px; padding:8px; border-radius:8px; }
+.opinion.vuelo { background-color: #e6f9e6; } 
+.opinion.no-vuelo { background-color: #ffe6e6; }
+.stars span { font-size: 22px; cursor: pointer; }
+.stars .selected { color: gold; }
+.stars .unselected { color: #ccc; }
+.btn { padding: 4px 8px; margin-left: 5px; border-radius: 5px; border: none; cursor: pointer; font-size:12px; }
+.btn-edit { background-color:#2196F3; color:white; }
+.btn-delete { background-color:#f44336; color:white; }
+input, select { margin-right: 5px; padding: 5px; border-radius: 5px; border: 1px solid #ccc; }
+.form-row { margin-bottom: 10px; display:flex; flex-wrap:wrap; gap:5px; }
+@media(max-width:600px){
+    .tabs { flex-direction: column; }
+    .form-row { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+
+<h1>🪂 Opiniones de Zonas de Vuelo</h1>
+
+<div class="tabs" id="tabs"></div>
+<div class="container" id="diasContainer"></div>
+
+<hr>
+<h2>Agregar / Editar Opinión</h2>
+<div class="form-row">
+  <input type="text" id="usuario" placeholder="Tu nombre">
+  <select id="fecha"></select>
+  <select id="zona"></select>
+</div>
+<div class="form-row">
+  <button class="btn btn-vuelo" onclick="seleccionVuelo(true)">✅ Se vuela</button>
+  <button class="btn btn-no-vuelo" onclick="seleccionVuelo(false)">❌ No se vuela</button>
+</div>
+<div class="form-row" id="estrellasContainer" style="display:none;">
+  <span class="stars" id="estrellas">
+    <span data-val="1" class="unselected" onclick="seleccionarEstrellas(1)">⭐</span>
+    <span data-val="2" class="unselected" onclick="seleccionarEstrellas(2)">⭐</span>
+    <span data-val="3" class="unselected" onclick="seleccionarEstrellas(3)">⭐</span>
+    <span data-val="4" class="unselected" onclick="seleccionarEstrellas(4)">⭐</span>
+    <span data-val="5" class="unselected" onclick="seleccionarEstrellas(5)">⭐</span>
+  </span>
+</div>
+<button onclick="agregarOpinion()">Guardar Opinión</button>
+
+<script>
+const zonas = ["Faro","Sanomedio","Iroite","Oia","Cerdal","Cerdedo","Razo","Quiroga","Rodicio","Larouco"];
+let datos = [];
+let vueloSeleccionado = null;
+let estrellasSeleccionadas = 0;
+let diaActivo = 0;
+let editando = null;
+
+// --- Persistencia ---
+function guardarDatos(){
+    localStorage.setItem('datosVuelos', JSON.stringify(datos));
+}
+function cargarDatos(){
+    const guardado = localStorage.getItem('datosVuelos');
+    if(guardado){
+        datos = JSON.parse(guardado);
+    } else {
+        // Inicializar 3 días
+        for(let i=0;i<3;i++){
+            let fecha = new Date();
+            fecha.setDate(fecha.getDate()+i);
+            let fechaStr = fecha.toISOString().slice(0,10);
+            datos.push({ fecha: fechaStr, zonas: zonas.map(z=>({nombre:z, opiniones:[]})) });
+        }
+    }
+}
+
+// Cargar o inicializar datos
+cargarDatos();
+
+// Poblamos selects
+const fechaSelect = document.getElementById("fecha");
+const zonaSelect = document.getElementById("zona");
+fechaSelect.innerHTML="";
+zonaSelect.innerHTML="";
+datos.forEach(d=> {
+  let opt = document.createElement("option");
+  opt.value = d.fecha;
+  opt.textContent = d.fecha;
+  fechaSelect.appendChild(opt);
+});
+zonas.forEach(z=>{
+  let opt = document.createElement("option");
+  opt.value = z;
+  opt.textContent = z;
+  zonaSelect.appendChild(opt);
+});
+
+// Tabs
+const tabsDiv = document.getElementById("tabs");
+tabsDiv.innerHTML="";
+datos.forEach((d,i)=>{
+    let t = document.createElement("div");
+    t.className = "tab" + (i===0 ? " active" : "");
+    t.textContent = d.fecha;
+    t.onclick = ()=>{ diaActivo=i; updateTabs(); render(); };
+    tabsDiv.appendChild(t);
+});
+
+function updateTabs(){
+    document.querySelectorAll(".tab").forEach((t,i)=>{
+        t.className = "tab" + (i===diaActivo ? " active" : "");
+    });
+}
+
+// Selección vuelo y estrellas
+function seleccionVuelo(valor){
+    vueloSeleccionado = valor;
+    document.getElementById("estrellasContainer").style.display = valor ? "flex" : "none";
+    estrellasSeleccionadas = valor ? 5 : 0;
+    actualizarEstrellas();
+}
+function seleccionarEstrellas(valor){
+    estrellasSeleccionadas = valor;
+    actualizarEstrellas();
+}
+function actualizarEstrellas(){
+    document.querySelectorAll("#estrellas span").forEach(s=>{
+        s.className = s.dataset.val <= estrellasSeleccionadas ? "selected" : "unselected";
+    });
+}
+
+// Agregar o editar
+function agregarOpinion(){
+    const usuario = document.getElementById("usuario").value.trim();
+    const fecha = fechaSelect.value;
+    const zona = zonaSelect.value;
+    if(!usuario){ alert("Introduce tu nombre"); return; }
+    if(vueloSeleccionado===null){ alert("Selecciona se vuela o no se vuela"); return; }
+
+    const dia = datos.find(d=>d.fecha===fecha);
+    const zonaObj = dia.zonas.find(z=>z.nombre===zona);
+
+    if(editando){
+        zonaObj.opiniones[editando.indice] = {usuario, vuelo:vueloSeleccionado, estrellas:estrellasSeleccionadas};
+        editando=null;
+    } else {
+        zonaObj.opiniones.push({usuario, vuelo:vueloSeleccionado, estrellas:estrellasSeleccionadas});
+    }
+
+    vueloSeleccionado=null;
+    estrellasSeleccionadas=0;
+    document.getElementById("estrellasContainer").style.display="none";
+    actualizarEstrellas();
+
+    guardarDatos();
+    render();
+}
+
+// Agrupar opiniones
+function agrupar(opiniones){
+    let grupos = [];
+    opiniones.forEach((op,i)=>{
+        let encontrado = grupos.find(g=>g.vuelo===op.vuelo && g.estrellas===op.estrellas);
+        if(encontrado){
+            encontrado.usuarios.push(op.usuario);
+            encontrado.indices.push(i);
+        } else {
+            grupos.push({vuelo:op.vuelo, estrellas:op.estrellas, usuarios:[op.usuario], indices:[i]});
+        }
+    });
+    return grupos;
+}
+
+// Editar
+function editarOpinion(fecha,zona,indice){
+    const dia = datos.find(d=>d.fecha===fecha);
+    const zonaObj = dia.zonas.find(z=>z.nombre===zona);
+    const op = zonaObj.opiniones[indice];
+    document.getElementById("usuario").value = op.usuario;
+    fechaSelect.value = fecha;
+    zonaSelect.value = zona;
+    seleccionVuelo(op.vuelo);
+    if(op.vuelo) seleccionarEstrellas(op.estrellas);
+    editando={fecha,zona,indice};
+}
+
+// Borrar
+function eliminarOpinion(fecha,zona,indice){
+    const dia = datos.find(d=>d.fecha===fecha);
+    const zonaObj = dia.zonas.find(z=>z.nombre===zona);
+    zonaObj.opiniones.splice(indice,1);
+    guardarDatos();
+    render();
+}
+
+// Render
+function render(){
+    const container = document.getElementById("diasContainer");
+    container.innerHTML="";
+    const dia = datos[diaActivo];
+    const nombreUsuario = document.getElementById("usuario").value.trim();
+
+    dia.zonas.forEach(zona=>{
+        let divZona = document.createElement("div");
+        divZona.className="zona";
+        let h3 = document.createElement("h3");
+        h3.textContent = `🪂 ${zona.nombre}`;
+        divZona.appendChild(h3);
+
+        let grupos = agrupar(zona.opiniones);
+
+        grupos.forEach(g=>{
+            let divOp = document.createElement("div");
+            divOp.className="opinion "+(g.vuelo?"vuelo":"no-vuelo");
+            divOp.innerHTML = (g.vuelo?"✅ Se vuela":"❌ No se vuela")+"<br>";
+            if(g.vuelo){
+                divOp.innerHTML += "<span class='stars'>" + "⭐".repeat(g.estrellas) + "</span><br>";
+            }
+
+            // Mostrar nombres con botones individuales
+            g.usuarios.forEach((u,i)=>{
+                let span = document.createElement("span");
+                span.textContent = u;
+                divOp.appendChild(span);
+
+                if(u===nombreUsuario){
+                    let btnE=document.createElement("button");
+                    btnE.className="btn btn-edit";
+                    btnE.textContent="Editar";
+                    btnE.onclick=()=>editarOpinion(dia.fecha,zona.nombre,g.indices[i]);
+                    divOp.appendChild(btnE);
+
+                    let btnD=document.createElement("button");
+                    btnD.className="btn btn-delete";
+                    btnD.textContent="Borrar";
+                    btnD.onclick=()=>eliminarOpinion(dia.fecha,zona.nombre,g.indices[i]);
+                    divOp.appendChild(btnD);
+                }
+                divOp.appendChild(document.createElement("br"));
+            });
+
+            container.appendChild(divOp);
+        });
+    });
+}
+
+render();
+</script>
+</body>
+</html>
