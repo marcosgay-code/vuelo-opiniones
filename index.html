@@ -15,7 +15,7 @@ h1 { text-align: center; color: #333; }
 .opinion { margin-left: 15px; margin-bottom: 10px; padding:8px; border-radius:8px; }
 .opinion.vuelo { background-color: #e6f9e6; } 
 .opinion.no-vuelo { background-color: #ffe6e6; }
-.stars span { font-size: 22px; cursor: pointer; }
+.stars span { font-size: 22px; cursor: pointer; display:inline-block; margin-right:2px;}
 .stars .selected { color: gold; }
 .stars .unselected { color: #ccc; }
 .btn { padding: 4px 8px; margin-left: 5px; border-radius: 5px; border: none; cursor: pointer; font-size:12px; }
@@ -47,15 +47,7 @@ input, select { margin-right: 5px; padding: 5px; border-radius: 5px; border: 1px
   <button class="btn btn-vuelo" onclick="seleccionVuelo(true)">✅ Se vuela</button>
   <button class="btn btn-no-vuelo" onclick="seleccionVuelo(false)">❌ No se vuela</button>
 </div>
-<div class="form-row" id="estrellasContainer" style="display:none;">
-  <span class="stars" id="estrellas">
-    <span data-val="1" class="unselected" onclick="seleccionarEstrellas(1)">⭐</span>
-    <span data-val="2" class="unselected" onclick="seleccionarEstrellas(2)">⭐</span>
-    <span data-val="3" class="unselected" onclick="seleccionarEstrellas(3)">⭐</span>
-    <span data-val="4" class="unselected" onclick="seleccionarEstrellas(4)">⭐</span>
-    <span data-val="5" class="unselected" onclick="seleccionarEstrellas(5)">⭐</span>
-  </span>
-</div>
+<div class="form-row" id="estrellasContainer" style="display:none;"></div>
 <button onclick="agregarOpinion()">Guardar Opinión</button>
 
 <script>
@@ -67,14 +59,11 @@ let diaActivo = 0;
 let editando = null;
 
 // --- Persistencia ---
-function guardarDatos(){
-    localStorage.setItem('datosVuelos', JSON.stringify(datos));
-}
+function guardarDatos(){ localStorage.setItem('datosVuelos', JSON.stringify(datos)); }
 function cargarDatos(){
     const guardado = localStorage.getItem('datosVuelos');
-    if(guardado){
-        datos = JSON.parse(guardado);
-    } else {
+    if(guardado){ datos = JSON.parse(guardado); }
+    else{
         for(let i=0;i<3;i++){
             let fecha = new Date();
             fecha.setDate(fecha.getDate()+i);
@@ -85,60 +74,46 @@ function cargarDatos(){
 }
 cargarDatos();
 
-// Poblamos selects
+// --- Selects ---
 const fechaSelect = document.getElementById("fecha");
 const zonaSelect = document.getElementById("zona");
-fechaSelect.innerHTML="";
-zonaSelect.innerHTML="";
-datos.forEach(d=> {
-  let opt = document.createElement("option");
-  opt.value = d.fecha;
-  opt.textContent = d.fecha;
-  fechaSelect.appendChild(opt);
-});
-zonas.forEach(z=>{
-  let opt = document.createElement("option");
-  opt.value = z;
-  opt.textContent = z;
-  zonaSelect.appendChild(opt);
-});
+fechaSelect.innerHTML=""; zonaSelect.innerHTML="";
+datos.forEach(d=>{ let opt=document.createElement("option"); opt.value=d.fecha; opt.textContent=d.fecha; fechaSelect.appendChild(opt); });
+zonas.forEach(z=>{ let opt=document.createElement("option"); opt.value=z; opt.textContent=z; zonaSelect.appendChild(opt); });
 
-// Tabs
+// --- Tabs ---
 const tabsDiv = document.getElementById("tabs");
 tabsDiv.innerHTML="";
 datos.forEach((d,i)=>{
-    let t = document.createElement("div");
-    t.className = "tab" + (i===0 ? " active" : "");
-    t.textContent = d.fecha;
-    t.onclick = ()=>{ diaActivo=i; updateTabs(); render(); };
+    let t=document.createElement("div");
+    t.className="tab"+(i===0?" active":"");
+    t.textContent=d.fecha;
+    t.onclick=()=>{ diaActivo=i; updateTabs(); render(); };
     tabsDiv.appendChild(t);
 });
+function updateTabs(){ document.querySelectorAll(".tab").forEach((t,i)=>t.className="tab"+(i===diaActivo?" active":"")); }
 
-function updateTabs(){
-    document.querySelectorAll(".tab").forEach((t,i)=>{
-        t.className = "tab" + (i===diaActivo ? " active" : "");
-    });
-}
-
-// Selección vuelo y estrellas
+// --- Vuelo / estrellas ---
+const estrellasContainer = document.getElementById("estrellasContainer");
 function seleccionVuelo(valor){
     vueloSeleccionado = valor;
-    document.getElementById("estrellasContainer").style.display = valor ? "flex" : "none";
-    estrellasSeleccionadas = 0;  // Permite elegir
-    actualizarEstrellas();
+    estrellasContainer.style.display = valor ? "flex" : "none";
+    estrellasSeleccionadas = 0;
+    dibujarEstrellas();
 }
-function seleccionarEstrellas(valor){
-    estrellasSeleccionadas = valor;
-    actualizarEstrellas();
-}
-function actualizarEstrellas(){
-    const spans = document.querySelectorAll("#estrellas span");
-    spans.forEach(s=>{
-        s.className = s.dataset.val <= estrellasSeleccionadas ? "selected" : "unselected";
-    });
+function dibujarEstrellas(){
+    estrellasContainer.innerHTML="";
+    for(let i=1;i<=5;i++){
+        let s = document.createElement("span");
+        s.textContent = "⭐";
+        s.dataset.val=i;
+        s.className = i<=estrellasSeleccionadas?"selected":"unselected";
+        s.onclick = ()=>{ estrellasSeleccionadas=i; dibujarEstrellas(); };
+        estrellasContainer.appendChild(s);
+    }
 }
 
-// Agregar o editar
+// --- Agregar / Editar ---
 function agregarOpinion(){
     const usuario = document.getElementById("usuario").value.trim();
     const fecha = fechaSelect.value;
@@ -150,38 +125,25 @@ function agregarOpinion(){
     const dia = datos.find(d=>d.fecha===fecha);
     const zonaObj = dia.zonas.find(z=>z.nombre===zona);
 
-    if(editando){
-        zonaObj.opiniones[editando.indice] = {usuario, vuelo:vueloSeleccionado, estrellas:estrellasSeleccionadas};
-        editando=null;
-    } else {
-        zonaObj.opiniones.push({usuario, vuelo:vueloSeleccionado, estrellas:estrellasSeleccionadas});
-    }
+    if(editando){ zonaObj.opiniones[editando.indice] = {usuario, vuelo:vueloSeleccionado, estrellas:estrellasSeleccionadas}; editando=null; }
+    else{ zonaObj.opiniones.push({usuario, vuelo:vueloSeleccionado, estrellas:estrellasSeleccionadas}); }
 
-    vueloSeleccionado=null;
-    estrellasSeleccionadas=0;
-    document.getElementById("estrellasContainer").style.display="none";
-    actualizarEstrellas();
-
-    guardarDatos();
-    render();
+    vueloSeleccionado=null; estrellasSeleccionadas=0; estrellasContainer.style.display="none";
+    guardarDatos(); render();
 }
 
-// Agrupar opiniones
+// --- Agrupar opiniones ---
 function agrupar(opiniones){
-    let grupos = [];
+    let grupos=[];
     opiniones.forEach((op,i)=>{
-        let encontrado = grupos.find(g=>g.vuelo===op.vuelo && g.estrellas===op.estrellas);
-        if(encontrado){
-            encontrado.usuarios.push(op.usuario);
-            encontrado.indices.push(i);
-        } else {
-            grupos.push({vuelo:op.vuelo, estrellas:op.estrellas, usuarios:[op.usuario], indices:[i]});
-        }
+        let g = grupos.find(g=>g.vuelo===op.vuelo && g.estrellas===op.estrellas);
+        if(g){ g.usuarios.push(op.usuario); g.indices.push(i); }
+        else{ grupos.push({vuelo:op.vuelo, estrellas:op.estrellas, usuarios:[op.usuario], indices:[i]}); }
     });
     return grupos;
 }
 
-// Editar
+// --- Editar / Borrar ---
 function editarOpinion(fecha,zona,indice){
     const dia = datos.find(d=>d.fecha===fecha);
     const zonaObj = dia.zonas.find(z=>z.nombre===zona);
@@ -190,20 +152,17 @@ function editarOpinion(fecha,zona,indice){
     fechaSelect.value = fecha;
     zonaSelect.value = zona;
     seleccionVuelo(op.vuelo);
-    if(op.vuelo) seleccionarEstrellas(op.estrellas);
+    if(op.vuelo){ estrellasSeleccionadas=op.estrellas; dibujarEstrellas(); }
     editando={fecha,zona,indice};
 }
-
-// Borrar
 function eliminarOpinion(fecha,zona,indice){
     const dia = datos.find(d=>d.fecha===fecha);
     const zonaObj = dia.zonas.find(z=>z.nombre===zona);
     zonaObj.opiniones.splice(indice,1);
-    guardarDatos();
-    render();
+    guardarDatos(); render();
 }
 
-// Render
+// --- Renderizado ---
 function render(){
     const container = document.getElementById("diasContainer");
     container.innerHTML="";
@@ -211,40 +170,28 @@ function render(){
     const nombreUsuario = document.getElementById("usuario").value.trim();
 
     dia.zonas.forEach(zona=>{
-        let divZona = document.createElement("div");
-        divZona.className="zona";
+        let divZona=document.createElement("div"); divZona.className="zona";
+        let h3=document.createElement("h3"); h3.textContent=`🪂 ${zona.nombre}`; divZona.appendChild(h3);
 
-        // Mostrar nombre de la zona
-        let h3 = document.createElement("h3");
-        h3.textContent = `🪂 ${zona.nombre}`;
-        divZona.appendChild(h3);
-
-        let grupos = agrupar(zona.opiniones);
+        let grupos=agrupar(zona.opiniones);
         grupos.forEach(g=>{
-            let divOp = document.createElement("div");
-            divOp.className = "opinion " + (g.vuelo ? "vuelo" : "no-vuelo");
-            divOp.innerHTML = (g.vuelo ? "✅ Se vuela" : "❌ No se vuela") + "<br>";
+            let divOp=document.createElement("div");
+            divOp.className="opinion "+(g.vuelo?"vuelo":"no-vuelo");
+            divOp.appendChild(document.createTextNode(g.vuelo?"✅ Se vuela":"❌ No se vuela")); divOp.appendChild(document.createElement("br"));
 
             if(g.vuelo){
-                divOp.innerHTML += "<span class='stars'>" + "⭐".repeat(g.estrellas) + "</span><br>";
+                let starsSpan=document.createElement("span"); starsSpan.className="stars";
+                for(let i=0;i<g.estrellas;i++){ let s=document.createElement("span"); s.textContent="⭐"; s.className="selected"; starsSpan.appendChild(s); }
+                divOp.appendChild(starsSpan); divOp.appendChild(document.createElement("br"));
             }
 
-            // Mostrar usuarios y botones
             g.usuarios.forEach((u,i)=>{
-                let span = document.createElement("span");
-                span.textContent = u;
-                divOp.appendChild(span);
-
+                let span=document.createElement("span"); span.textContent=u; divOp.appendChild(span);
                 if(u===nombreUsuario){
-                    let btnE=document.createElement("button");
-                    btnE.className="btn btn-edit";
-                    btnE.textContent="Editar";
+                    let btnE=document.createElement("button"); btnE.className="btn btn-edit"; btnE.textContent="Editar";
                     btnE.onclick=()=>editarOpinion(dia.fecha,zona.nombre,g.indices[i]);
                     divOp.appendChild(btnE);
-
-                    let btnD=document.createElement("button");
-                    btnD.className="btn btn-delete";
-                    btnD.textContent="Borrar";
+                    let btnD=document.createElement("button"); btnD.className="btn btn-delete"; btnD.textContent="Borrar";
                     btnD.onclick=()=>eliminarOpinion(dia.fecha,zona.nombre,g.indices[i]);
                     divOp.appendChild(btnD);
                 }
