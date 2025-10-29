@@ -75,7 +75,6 @@ function cargarDatos(){
     if(guardado){
         datos = JSON.parse(guardado);
     } else {
-        // Inicializar 3 días
         for(let i=0;i<3;i++){
             let fecha = new Date();
             fecha.setDate(fecha.getDate()+i);
@@ -84,8 +83,6 @@ function cargarDatos(){
         }
     }
 }
-
-// Cargar o inicializar datos
 cargarDatos();
 
 // Poblamos selects
@@ -127,7 +124,7 @@ function updateTabs(){
 function seleccionVuelo(valor){
     vueloSeleccionado = valor;
     document.getElementById("estrellasContainer").style.display = valor ? "flex" : "none";
-    estrellasSeleccionadas = valor ? 5 : 0;
+    estrellasSeleccionadas = 0;  // Permite elegir
     actualizarEstrellas();
 }
 function seleccionarEstrellas(valor){
@@ -135,7 +132,8 @@ function seleccionarEstrellas(valor){
     actualizarEstrellas();
 }
 function actualizarEstrellas(){
-    document.querySelectorAll("#estrellas span").forEach(s=>{
+    const spans = document.querySelectorAll("#estrellas span");
+    spans.forEach(s=>{
         s.className = s.dataset.val <= estrellasSeleccionadas ? "selected" : "unselected";
     });
 }
@@ -147,6 +145,7 @@ function agregarOpinion(){
     const zona = zonaSelect.value;
     if(!usuario){ alert("Introduce tu nombre"); return; }
     if(vueloSeleccionado===null){ alert("Selecciona se vuela o no se vuela"); return; }
+    if(vueloSeleccionado && estrellasSeleccionadas===0){ alert("Selecciona cuántas estrellas"); return; }
 
     const dia = datos.find(d=>d.fecha===fecha);
     const zonaObj = dia.zonas.find(z=>z.nombre===zona);
@@ -214,21 +213,23 @@ function render(){
     dia.zonas.forEach(zona=>{
         let divZona = document.createElement("div");
         divZona.className="zona";
+
+        // Mostrar nombre de la zona
         let h3 = document.createElement("h3");
         h3.textContent = `🪂 ${zona.nombre}`;
         divZona.appendChild(h3);
 
         let grupos = agrupar(zona.opiniones);
-
         grupos.forEach(g=>{
             let divOp = document.createElement("div");
-            divOp.className="opinion "+(g.vuelo?"vuelo":"no-vuelo");
-            divOp.innerHTML = (g.vuelo?"✅ Se vuela":"❌ No se vuela")+"<br>";
+            divOp.className = "opinion " + (g.vuelo ? "vuelo" : "no-vuelo");
+            divOp.innerHTML = (g.vuelo ? "✅ Se vuela" : "❌ No se vuela") + "<br>";
+
             if(g.vuelo){
                 divOp.innerHTML += "<span class='stars'>" + "⭐".repeat(g.estrellas) + "</span><br>";
             }
 
-            // Mostrar nombres con botones individuales
+            // Mostrar usuarios y botones
             g.usuarios.forEach((u,i)=>{
                 let span = document.createElement("span");
                 span.textContent = u;
@@ -250,8 +251,10 @@ function render(){
                 divOp.appendChild(document.createElement("br"));
             });
 
-            container.appendChild(divOp);
+            divZona.appendChild(divOp);
         });
+
+        container.appendChild(divZona);
     });
 }
 
@@ -259,3 +262,4 @@ render();
 </script>
 </body>
 </html>
+
